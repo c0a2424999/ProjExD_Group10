@@ -24,7 +24,8 @@ RED    = (255, 50, 50)     # 通常こうかとん
 BLUE   = (50, 50, 255)     # タワー
 YELLOW = (255, 255, 0)     # 弾
 
-# 【担当C, D, E】ここに各機能で使用する色を追加してください
+# トラップの色定義
+trap_color = (255, 165, 0)  # トラップの色
 # ORANGE = (255, 165, 0)
 # PURPLE = ...
 
@@ -36,7 +37,7 @@ TILE_SPAWN = 3
 
 # ゲーム状態
 STATE_PLAY = 1
-# 【担当A】ここに STATE_GAMEOVER を追加してください
+
 
 # ====================================================
 #  2. クラス定義エリア
@@ -51,22 +52,14 @@ class GameManager:
         self.life = 20      # 拠点ライフ
         self.state = STATE_PLAY
         
-        # 【担当E】ここにフィーバー用の変数を追加してください (timer, is_feverなど)
+        
 
     def update(self):
         pass
-        # 【担当E】ここでフィーバータイマーの減算処理などを書いてください
-
+        
     def check_gameover(self):
         if self.life <= 0:
             print("Game Over! (Logic not implemented yet)")
-            # 【担当A】ここで state を STATE_GAMEOVER に変更してください
-
-    # 【担当A】ここに reset_game(self, ...) メソッドを追加してください
-    # def reset_game(self, ...):
-    #     ...
-
-    # 【担当E】ここに activate_fever(self) メソッドを追加してください
 
 
 class MapManager:
@@ -105,7 +98,6 @@ class MapManager:
         ]
 
     def draw(self, screen, is_fever=False):
-        # 【担当E】is_feverフラグを受け取り、フィーバー中は背景色を変えてください
         screen.fill(BLACK) 
 
         for r, row in enumerate(self.map_data):
@@ -127,8 +119,7 @@ class MapManager:
             return self.map_data[r][c] == TILE_GRASS
         return False
     
-    # 【担当C】ここに is_path(self, x, y) メソッドを追加してください
-    # トラップ設置判定に使います
+    # トラップ設置判定
     def is_path(self, x, y):
         c = x // TILE_SIZE
         r = y // TILE_SIZE
@@ -142,17 +133,16 @@ class Koukaton(pygame.sprite.Sprite):
     敵キャラクタークラス
     """
     def __init__(self, waypoints):
-        # 【担当D】引数に is_elite を追加し、エリートならステータスを変える処理を記述してください
         super().__init__()
         self.image = pygame.Surface((20, 20))
-        self.image.fill(RED) # 【担当D】エリートなら色を変える
+        self.image.fill(RED) # エリートなら色を変える
         self.rect = self.image.get_rect()
         
         self.waypoints = waypoints
         self.wp_index = 0
-        self.speed = 2   # 【担当D】エリートなら速くする
-        self.hp = 30     # 【担当D】エリートなら体力を増やす
-        self.value = 10  # 【担当D】エリートなら撃破報酬を増やす
+        self.speed = 2   #  エリートなら速くする
+        self.hp = 30     #  エリートなら体力を増やす
+        self.value = 10  #  エリートなら撃破報酬を増やす
 
         if waypoints:
             self.rect.center = waypoints[0]
@@ -175,9 +165,37 @@ class Koukaton(pygame.sprite.Sprite):
             self.kill()
 
 
-# 【担当C】ここに class Trap(pygame.sprite.Sprite): を追加してください
-# 敵と衝突したらダメージを与える処理などを書きます
 
+# 敵と衝突したらダメージを与える処理
+class Trap(pygame.sprite.Sprite):
+    """
+    トラップクラス（道に設置し、敵にダメージを与える）
+    """
+    def __init__(self, x, y):
+        super().__init__()
+        self.image = pygame.Surface((TILE_SIZE, TILE_SIZE))
+        # トラップを分かりやすくするため、半透明のTRAP_COLORにする
+        self.image.fill(trap_color) # 変数をTRAP_COLORに修正
+        self.image.set_alpha(150) # 半透明化
+        self.rect = self.image.get_rect(topleft=(x, y))
+
+        self.damage = 20 # 衝突時のダメージ量
+        self.life = 1   # トラップの耐久回数（1回衝突したら消える）
+
+    def update(self, enemy_group):
+         # 敵との衝突判定をメインループではなく、トラップのupdate内で行う
+        hits = pygame.sprite.spritecollide(self, enemy_group, False)
+
+        if hits:
+            for enemy in hits:
+                enemy.hp -= self.damage
+                self.life -= 1
+                print(f"Trap hit! Enemy HP: {enemy.hp}, Trap Life: {self.life}")
+                    
+
+        # トラップの耐久が0になったら削除
+        if self.life <= 0:
+            self.kill()
 
 class Tower(pygame.sprite.Sprite):
     """
@@ -193,10 +211,8 @@ class Tower(pygame.sprite.Sprite):
         self.cooldown = 30
         self.timer = 0
         
-        # 【担当B】ここにレベルなどの強化用変数を追加してください
 
     def update(self, enemy_group, bullet_group, is_fever=False):
-        # 【担当E】is_feverフラグを受け取り、フィーバー中はクールダウンを短くしてください
         
         self.timer += 1
         if self.timer >= self.cooldown:
@@ -213,8 +229,6 @@ class Tower(pygame.sprite.Sprite):
                 new_bullet = Bullet(self.rect.center, nearest_enemy.rect.center)
                 bullet_group.add(new_bullet)
                 self.timer = 0
-    
-    # 【担当B】ここに upgrade(self) メソッドを追加してください
 
 
 class Bullet(pygame.sprite.Sprite):
@@ -260,13 +274,12 @@ def main():
     tower_group = pygame.sprite.Group()
     bullet_group = pygame.sprite.Group()
     
-    # 【担当C】ここに trap_group = pygame.sprite.Group() を追加
-
+    trap_group = pygame.sprite.Group()
     # 初期配置（テスト用）
     tower_group.add(Tower(14 * TILE_SIZE, 4 * TILE_SIZE))
     
     spawn_timer = 0
-
+    TRAP_COST = 50  # トラップの設置コスト
     running = True
     while running:
         # --- 1. イベント処理 ---
@@ -274,15 +287,6 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             
-        #     # 【担当A】ここに「ゲームオーバー中にRキーでリセット」する処理を追加
-            
-        #     if event.type == pygame.MOUSEBUTTONDOWN:
-        #         mx, my = pygame.mouse.get_pos()
-                
-        #         # 左クリック：タワー配置
-        #         if event.button == 1:
-        #             # 【担当B】ここに「タワーをクリックしたら強化」する処理を追加してください
-                    
         #             # 新規配置
         #             # if map_manager.is_placeable(mx, my):
         #             #      cost = 100
@@ -290,10 +294,37 @@ def main():
         #             #          gm.chicken -= cost
         #             #          tower_group.add(Tower((mx//TILE_SIZE)*TILE_SIZE, (my//TILE_SIZE)*TILE_SIZE))
 
-                # 【担当C】ここに「右クリックでトラップ配置」処理を追加してください
+                # 「右クリックでトラップ配置」処理
+            if event.type == pygame.MOUSEBUTTONDOWN:
+                mx, my = pygame.mouse.get_pos()
                 
-            # 【担当E】ここに「フィーバー発動キー（例: Fキー）」の処理を追加してください
-
+                #             # 新規配置
+                #             # if map_manager.is_placeable(mx, my):
+                #             #      cost = 100
+                #             #      if gm.chicken >= cost:
+                #             #          gm.chicken -= cost
+                #             #          tower_group.add(Tower((mx//TILE_SIZE)*TILE_SIZE, (my//TILE_SIZE)*TILE_SIZE))
+                
+                
+                if event.button == 3: # 右クリック 
+                    # タイル座標に変換
+                    tx = (mx // TILE_SIZE) * TILE_SIZE
+                    ty = (my // TILE_SIZE) * TILE_SIZE
+        
+                        # 道の上であり、コストがあり、そのマスにトラップがまだない場合
+                    if map_manager.is_path(mx, my) and gm.chicken >= TRAP_COST:
+                        # 既に同じマスにトラップがあるかチェック
+                        existing_trap = None
+                        for trap in trap_group:
+                            if trap.rect.topleft == (tx, ty):
+                                existing_trap = trap
+                                break
+        
+                        if not existing_trap:
+                            gm.chicken -= TRAP_COST
+                            trap_group.add(Trap(tx, ty))
+                            print(f"Trap placed at ({tx}, {ty}). Cost: {TRAP_COST}")
+                
 
         # --- 2. 更新処理 ---
         if gm.state == STATE_PLAY:
@@ -301,18 +332,16 @@ def main():
 
             # 敵出現ロジック
             spawn_timer += 1
-            if spawn_timer >= 120: # 【担当E】フィーバー中は出現間隔を短くする
-                spawn_timer = 0
+            if spawn_timer >= 120: 
                 
-                # 【担当D】ここに確率でエリートフラグを立てる処理を追加してください
                 new_enemy = Koukaton(map_manager.waypoints)
                 enemy_group.add(new_enemy)
-
+                spawn_timer = 0
             enemy_group.update(gm)
             tower_group.update(enemy_group, bullet_group) # 【担当E】is_feverを渡す
             bullet_group.update()
-            # 【担当C】trap_group.update(enemy_group) を追加
-
+            
+            trap_group.update(enemy_group)
             # 衝突判定：弾 vs こうかとん
             hits = pygame.sprite.groupcollide(bullet_group, enemy_group, True, False)
             for bullet, hit_enemies in hits.items():
@@ -321,7 +350,6 @@ def main():
                     if enemy.hp <= 0:
                         enemy.kill()
                         gm.chicken += enemy.value
-                        # 【担当E】ここにフィーバーゲージ増加処理を追加
 
             gm.check_gameover()
 
@@ -329,21 +357,18 @@ def main():
         screen.fill(BLACK)
         
         if gm.state == STATE_PLAY:
-            map_manager.draw(screen) # 【担当E】is_feverを渡す
-            # 【担当C】trap_group.draw(screen) を追加
+            map_manager.draw(screen) 
+            
             tower_group.draw(screen)
             enemy_group.draw(screen)
             bullet_group.draw(screen)
+            trap_group.draw(screen)  # トラップ描画
             
             # UI表示
             txt_chicken = font.render(f"Chicken: {gm.chicken}", True, WHITE)
             txt_life = font.render(f"Life: {gm.life}", True, WHITE)
             screen.blit(txt_chicken, (10, 10))
             screen.blit(txt_life, (10, 50))
-            
-            # 【担当E】フィーバー中のテキスト表示などを追加
-
-        # 【担当A】ここに「elif gm.state == STATE_GAMEOVER:」の描画処理を追加してください
 
         pygame.display.flip()
         clock.tick(FPS)
