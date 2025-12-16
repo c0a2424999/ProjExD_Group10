@@ -23,6 +23,7 @@ BLACK  = (0, 0, 0)
 RED    = (255, 50, 50)     # 通常こうかとん
 BLUE   = (50, 50, 255)     # タワー
 YELLOW = (255, 255, 0)     # 弾
+PURPLE = (180, 0, 255)     #エリートカラー
 
 # 【担当C, D, E】ここに各機能で使用する色を追加してください
 # ORANGE = (255, 165, 0)
@@ -141,18 +142,18 @@ class Koukaton(pygame.sprite.Sprite):
     """
     敵キャラクタークラス
     """
-    def __init__(self, waypoints):
+    def __init__(self, waypoints, is_elite = False):
         # 【担当D】引数に is_elite を追加し、エリートならステータスを変える処理を記述してください
         super().__init__()
         self.image = pygame.Surface((20, 20))
-        self.image.fill(RED) # 【担当D】エリートなら色を変える
+        self.image.fill(PURPLE if is_elite else RED) # 【担当D】エリートなら色を変える
         self.rect = self.image.get_rect()
         
         self.waypoints = waypoints
         self.wp_index = 0
-        self.speed = 2   # 【担当D】エリートなら速くする
-        self.hp = 30     # 【担当D】エリートなら体力を増やす
-        self.value = 10  # 【担当D】エリートなら撃破報酬を増やす
+        self.speed = 3 if is_elite else 2   # エリートなら速くする
+        self.hp = 60 if is_elite else 30     # エリートなら体力を増やす
+        self.value = 30 if is_elite else 10  # エリートなら撃破報酬を増やす
 
         if waypoints:
             self.rect.center = waypoints[0]
@@ -305,9 +306,10 @@ def main():
                 spawn_timer = 0
                 
                 # 【担当D】ここに確率でエリートフラグを立てる処理を追加してください
-                new_enemy = Koukaton(map_manager.waypoints)
+                is_elite = random.random() < 0.2 # 20%でエリート
+                new_enemy = Koukaton(map_manager.waypoints, is_elite)
                 enemy_group.add(new_enemy)
-
+                
             enemy_group.update(gm)
             tower_group.update(enemy_group, bullet_group) # 【担当E】is_feverを渡す
             bullet_group.update()
