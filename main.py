@@ -52,10 +52,27 @@ class GameManager:
         self.state = STATE_PLAY
         
         # 【担当E】ここにフィーバー用の変数を追加してください (timer, is_feverなど)
+        self.fever_gauge = 0 # フィーバーゲージ (最大30)
+        self.is_fever = False # フィーバー中かどうかのフラグ
+        self.fever_timer = 0 # フィーバーの残り時間 (フレーム数)
+        self.FEVER_DURATION = FPS * 20 # 20秒間
+
+    def activate_fever(self):
+        """フィーバー状態を開始する"""
+        if not self.is_fever:
+            self.fever_timer = self.FEVER_DURATION
+            self.is_fever = True
+            self.fever_gauge = 0 # ゲージをリセット
+            print("--- FEVER TIME START! ---")
 
     def update(self):
-        pass
         # 【担当E】ここでフィーバータイマーの減算処理などを書いてください
+        if self.is_fever:
+            self.fever_timer -= 1
+            if self.fever_timer <= 0:
+                self.is_fever = False
+                self.fever_timer = 0
+                print("--- FEVER TIME END! ---")
 
     def check_gameover(self):
         if self.life <= 0:
@@ -106,13 +123,17 @@ class MapManager:
 
     def draw(self, screen, is_fever=False):
         # 【担当E】is_feverフラグを受け取り、フィーバー中は背景色を変えてください
+        if is_fever:
+            grass_color = (255, 215, 0)  # フィーバー中の背景色（金色）
+        else:
+            grass_color = (0, 100, 0)
         screen.fill(BLACK) 
-
+    
         for r, row in enumerate(self.map_data):
             for c, tile in enumerate(row):
                 rect = pygame.Rect(c * TILE_SIZE, r * TILE_SIZE, TILE_SIZE, TILE_SIZE)
                 if tile == TILE_PATH: color = (240, 230, 140)
-                elif tile == TILE_GRASS: color = (0, 100, 0)
+                elif tile == TILE_GRASS: color = grass_color
                 elif tile == TILE_BASE: color = BLUE
                 elif tile == TILE_SPAWN: color = RED
                 else: color = BLACK
@@ -197,9 +218,13 @@ class Tower(pygame.sprite.Sprite):
 
     def update(self, enemy_group, bullet_group, is_fever=False):
         # 【担当E】is_feverフラグを受け取り、フィーバー中はクールダウンを短くしてください
-        
+        # 通常のクールダウン時間
+        current_cooldown = self.cooldown
+        # フィーバー中はクールダウンを短縮 (例: 半分にする)
+        if is_fever:
+            current_cooldown = self.cooldown // 2
         self.timer += 1
-        if self.timer >= self.cooldown:
+        if self.timer >= current_cooldown:
             nearest_enemy = None
             min_dist = self.range
             for enemy in enemy_group:
@@ -293,15 +318,22 @@ def main():
                 # 【担当C】ここに「右クリックでトラップ配置」処理を追加してください
                 
             # 【担当E】ここに「フィーバー発動キー（例: Fキー）」の処理を追加してください
-
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_f:
+                    # ゲージが満タンならフィーバー発動
+                    if gm.fever_gauge >= 30:
+                        gm.activate_fever()
 
         # --- 2. 更新処理 ---
         if gm.state == STATE_PLAY:
             gm.update()
 
             # 敵出現ロジック
+            spawn_interval = 120
+            if gm.is_fever:
+                spawn_interval = 50  # 【担当E】フィーバー中は出現間隔を短くする
             spawn_timer += 1
-            if spawn_timer >= 120: # 【担当E】フィーバー中は出現間隔を短くする
+            if spawn_timer >= spawn_interval: # 【担当E】フィーバー中は出現間隔を短くする
                 spawn_timer = 0
                 
                 # 【担当D】ここに確率でエリートフラグを立てる処理を追加してください
@@ -309,7 +341,7 @@ def main():
                 enemy_group.add(new_enemy)
 
             enemy_group.update(gm)
-            tower_group.update(enemy_group, bullet_group) # 【担当E】is_feverを渡す
+            tower_group.update(enemy_group, bullet_group, gm.is_fever) # 【担当E】is_feverを渡す
             bullet_group.update()
             # 【担当C】trap_group.update(enemy_group) を追加
 
@@ -322,6 +354,8 @@ def main():
                         enemy.kill()
                         gm.chicken += enemy.value
                         # 【担当E】ここにフィーバーゲージ増加処理を追加
+                        if not gm.is_fever:
+                             gm.fever_gauge = min(30, gm.fever_gauge + 1)
 
             gm.check_gameover()
 
@@ -329,7 +363,7 @@ def main():
         screen.fill(BLACK)
         
         if gm.state == STATE_PLAY:
-            map_manager.draw(screen) # 【担当E】is_feverを渡す
+            map_manager.draw(screen, gm.is_fever) # 【担当E】is_feverを渡す
             # 【担当C】trap_group.draw(screen) を追加
             tower_group.draw(screen)
             enemy_group.draw(screen)
@@ -341,7 +375,19 @@ def main():
             screen.blit(txt_chicken, (10, 10))
             screen.blit(txt_life, (10, 50))
             
-            # 【担当E】フィーバー中のテキスト表示などを追加
+            # 【担当E】フィーバーゲージのUI表示
+            FEVER_MAX = 30
+            gauge_ratio = gm.fever_gauge / FEVER_MAX
+            pygame.draw.rect(screen, (50, 50, 50), (10, 550, 150, 20), 0) # ゲージ背景
+            pygame.draw.rect(screen, (255, 0, 255), (10, 550, 150 * gauge_ratio, 20), 0) # ゲージ本体
+            txt_fever = font.render(f"Fever: {gm.fever_gauge}/{FEVER_MAX}", True, WHITE)
+            screen.blit(txt_fever, (170, 550))
+
+            # 【担当E】フィーバー中のテキスト表示
+            if gm.is_fever:
+                sec = gm.fever_timer // FPS + 1
+                txt_fever_time = font.render(f"FEVER TIME! ({sec}s)", True, (255, 0, 255))
+                screen.blit(txt_fever_time, (SCREEN_WIDTH // 2 - txt_fever_time.get_width() // 2, 10))
 
         # 【担当A】ここに「elif gm.state == STATE_GAMEOVER:」の描画処理を追加してください
 
