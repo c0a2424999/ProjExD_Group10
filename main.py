@@ -279,16 +279,16 @@ def main():
                 running = False
             
        
-                if event.type == pygame.KEYDOWN:
-                    if event.key == pygame.K_r:
-                        gm.reset_game()
-                        enemy_group.empty()
-                        bullet_group.empty()
-                        tower_group.empty()
-                        tower_group.add(Tower(14 * TILE_SIZE, 4 * TILE_SIZE))
-                        spawn_timer = 0
-                    elif event.key == pygame.K_q:
-                            running = False
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    gm.reset_game()
+                    enemy_group.empty()                        
+                    bullet_group.empty()
+                    tower_group.empty()
+                    tower_group.add(Tower(14 * TILE_SIZE, 4 * TILE_SIZE))
+                    spawn_timer = 0
+                elif event.key == pygame.K_q:
+                    running = False
 
 
         # --- 2. 更新処理 ---
